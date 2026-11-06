@@ -28,7 +28,7 @@ export class ReportService {
         re.updated_at
       FROM categories c
       LEFT JOIN report_entries re ON c.id = re.category_id AND re.report_id = ?
-      WHERE c.is_active = 1 OR re.id IS NOT NULL
+      WHERE (c.is_deleted = 0 AND c.is_active = 1) OR (re.id IS NOT NULL AND (re.count > 0 OR c.is_deleted = 0))
       ORDER BY c.sort_order ASC, c.id ASC
     `);
 
@@ -110,7 +110,7 @@ export class ReportService {
         .prepare('SELECT * FROM daily_reports WHERE operator_name = ? AND report_date = ?')
         .get(operator, targetDate);
 
-      const categories = db.prepare('SELECT id FROM categories WHERE is_active = 1').all();
+      const categories = db.prepare('SELECT id FROM categories WHERE is_active = 1 AND is_deleted = 0').all();
       const insertEntry = db.prepare(`
         INSERT INTO report_entries (report_id, category_id, count, updated_at)
         VALUES (?, ?, 0, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))

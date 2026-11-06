@@ -933,6 +933,76 @@ body {
   color: var(--text-muted);
 }
 
+.cat-toggle-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.btn-delete-cat {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-delete-cat:hover {
+  background: #fef2f2;
+  border-color: #fca5a5;
+  color: #dc2626;
+  transform: scale(1.05);
+}
+
+.btn-delete-cat:active {
+  transform: scale(0.95);
+}
+
+.empty-state-notice {
+  padding: 1.5rem;
+  text-align: center;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  background: var(--bg-card-subtle);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+}
+
+/* Delete Confirm Modal Styles */
+.modal-dialog-danger .modal-header {
+  border-bottom: 1px solid #fee2e2;
+}
+
+.modal-dialog-danger .modal-title {
+  color: #dc2626;
+}
+
+.delete-confirm-text {
+  font-size: 0.9375rem;
+  color: var(--text-main);
+  margin-bottom: 0.5rem;
+  line-height: 1.5;
+}
+
+.delete-confirm-text strong {
+  color: #dc2626;
+  font-weight: 700;
+}
+
+.delete-confirm-hint {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+  margin-bottom: 0.5rem;
+}
+
 /* Switch UI */
 .switch {
   position: relative;

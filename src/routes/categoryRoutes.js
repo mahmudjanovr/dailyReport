@@ -60,4 +60,27 @@ router.patch('/:id/toggle', (req, res, next) => {
   }
 });
 
+// DELETE /api/categories/:id - Delete (soft-delete) category safely
+router.delete('/:id', (req, res, next) => {
+  try {
+    const id = Number.parseInt(req.params.id, 10);
+    if (Number.isNaN(id) || id <= 0) {
+      throw new NotFoundError('Noto‘g‘ri toifa identifikatori');
+    }
+
+    const deleted = CategoryService.deleteCategory(id);
+    if (!deleted) {
+      throw new NotFoundError(`Toifa #${id} topilmadi`);
+    }
+
+    res.json({
+      success: true,
+      message: 'Toifa muvaffaqiyatli o‘chirildi',
+      data: deleted,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default router;

@@ -373,4 +373,196 @@ describe('Category Management & Dynamic Creation Upgrade', () => {
       }
     });
   });
+
+  // 9. Category Deletion & History Safety (Soft-delete)
+  describe('Category Deletion & History Safety (Soft-delete)', () => {
+    it('successfully soft-deletes a category via DELETE /api/categories/:id', async () => {
+      // Create a dedicated custom category for deletion
+      const createRes = await fetch(`${baseUrl}/api/categories`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ label: `O‘chirish sinovi ${Date.now()}` }),
+      });
+      assert.strictEqual(createRes.status, 201);
+      const created = (await createRes.json()).data;
+
+      // Delete via API
+      const deleteRes = await fetch(`${baseUrl}/api/categories/${created.id}`, {
+        method: 'DELETE',
+      });
+      assert.strictEqual(deleteRes.status, 200);
+
+      const deleteJson = await deleteRes.json();
+      assert.strictEqual(deleteJson.success, true);
+      assert.strictEqual(deleteJson.data.is_deleted, 1);
+      assert.strictEqual(deleteJson.data.is_active, 0);
+
+      // Verify it cannot be retrieved via normal getById
+      const db = getDb();
+      const inDbActive = CategoryService.getById(created.id, {}, db);
+      assert.strictEqual(inDbActive, null, 'Deleted category must return null in default getById');
+
+      // But still exists in DB with is_deleted = 1
+      const inDbWithDeleted = CategoryService.getById(created.id, { includeDeleted: true }, db);
+      assert.ok(inDbWithDeleted);
+      assert.strictEqual(inDbWithDeleted.is_deleted, 1);
+    });
+
+    it('returns 404 for invalid category ID (negative, zero, or non-numeric)', async () => {
+      const resNeg = await fetch(`${baseUrl}/api/categories/-5`, { method: 'DELETE' });
+      assert.strictEqual(resNeg.status, 404);
+
+      const resZero = await fetch(`${baseUrl}/api/categories/0`, { method: 'DELETE' });
+      assert.strictEqual(resZero.status, 404);
+
+      const resStr = await fetch(`${baseUrl}/api/categories/not-a-number`, { method: 'DELETE' });
+      assert.strictEqual(resStr.status, 404);
+    });
+
+    it('returns 404 for non-existent category ID', async () => {
+      const res = await fetch(`${baseUrl}/api/categories/999999`, { method: 'DELETE' });
+      assert.strictEqual(res.status, 404);
+      const json = await res.json();
+      assert.strictEqual(json.success, false);
+    });
+
+    it('returns 404 when attempting to delete an already deleted category', async () => {
+      const createRes = await fetch(`${baseUrl}/api/categories`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ label: `Takroriy o‘chirish ${Date.now()}` }),
+      });
+      const created = (await createRes.json()).data;
+
+      // First delete -> 200 OK
+      const firstDel = await fetch(`${baseUrl}/api/categories/${created.id}`, { method: 'DELETE' });
+      assert.strictEqual(firstDel.status, 200);
+
+      // Second delete -> 404 Not Found
+      const secondDel = await fetch(`${baseUrl}/api/categories/${created.id}`, { method: 'DELETE' });
+      assert.strictEqual(secondDel.status, 404);
+    });
+
+    it('ensures deleted category does not appear in GET /api/categories or settings listing', async () => {
+      const uniqueName = `Ro‘yxatdan yo‘qolish ${Date.now()}`;
+      const createRes = await fetch(`${baseUrl}/api/categories`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ label: uniqueName }),
+      });
+      const created = (await createRes.json()).data;
+
+      // Delete category
+      await fetch(`${baseUrl}/api/categories/${created.id}`, { method: 'DELETE' });
+
+      // List normal categories
+      const listRes = await fetch(`${baseUrl}/api/categories`);
+      const listJson = await listRes.json();
+      assert.ok(!listJson.data.some((c) => c.id === created.id));
+
+      // List all categories (for settings: ?all=true)
+      const listAllRes = await fetch(`${baseUrl}/api/categories?all=true`);
+      const listAllJson = await listAllRes.json();
+      assert.ok(!listAllJson.data.some((c) => c.id === created.id), 'Deleted category must NOT appear even with ?all=true');
+    });
+
+    it('ensures deleted category is not included in newly created reports', async () => {
+      const db = getDb();
+      const uniqueLabel = `Yangi hisobotdan chetlatish ${Date.now()}`;
+      const cat = CategoryService.createCategory({ label: uniqueLabel }, db);
+
+      // Delete the category
+      CategoryService.deleteCategory(cat.id, db);
+
+      // Create a new future report
+      const futureDate = '2026-12-30';
+      const report = ReportService.getOrCreateReportForDate('Rahmatillo', futureDate, db);
+      const foundEntry = report.entries.find((e) => e.category_id === cat.id);
+      assert.strictEqual(foundEntry, undefined, 'Deleted category must NOT be seeded into new daily reports');
+    });
+
+    it('preserves historical report entries with correct counts for deleted categories', async () => {
+      const db = getDb();
+      const histLabel = `Tarixiy toifa ${Date.now()}`;
+      const cat = CategoryService.createCategory({ label: histLabel }, db);
+
+      // Record a count in a historical report
+      const histDate = '2026-10-20';
+      const report = ReportService.getOrCreateReportForDate('Rahmatillo', histDate, db);
+      ReportService.saveSingleEntry({
+        reportId: report.id,
+        categoryId: cat.id,
+        count: 19,
+      }, db);
+
+      // Now delete the category
+      const delResult = CategoryService.deleteCategory(cat.id, db);
+      assert.ok(delResult);
+      assert.strictEqual(delResult.is_deleted, 1);
+
+      // Re-fetch the historical report via service and API
+      const fetchedReport = ReportService.getReportById(report.id, db);
+      assert.ok(fetchedReport);
+
+      const entry = fetchedReport.entries.find((e) => e.category_id === cat.id);
+      assert.ok(entry, 'Historical report entry must be preserved');
+      assert.strictEqual(entry.count, 19, 'Historical count must remain intact');
+      assert.strictEqual(entry.category_label, histLabel, 'Historical category label must remain intact');
+
+      // Check via HTTP endpoint
+      const apiRes = await fetch(`${baseUrl}/api/reports/${report.id}`);
+      assert.strictEqual(apiRes.status, 200);
+      const apiJson = await apiRes.json();
+      const apiEntry = apiJson.data.entries.find((e) => e.category_id === cat.id);
+      assert.ok(apiEntry);
+      assert.strictEqual(apiEntry.count, 19);
+    });
+
+    it('does not re-create deleted standard categories when initializeDatabase() is called', async () => {
+      const db = getDb();
+      // Pick a standard category to soft-delete
+      const targetCat = CategoryService.getByKey('farzandlari_katta', {}, db);
+      assert.ok(targetCat, 'farzandlari_katta must initially exist');
+
+      // Soft delete it
+      CategoryService.deleteCategory(targetCat.id, db);
+
+      // Run initializeDatabase() — simulating server restarts and re-runs
+      initializeDatabase(db);
+
+      // Verify the standard category is STILL soft-deleted
+      const inDbActive = CategoryService.getByKey('farzandlari_katta', {}, db);
+      assert.strictEqual(inDbActive, null, 'Deleted standard category must not be active');
+
+      const inDbDeleted = CategoryService.getByKey('farzandlari_katta', { includeDeleted: true }, db);
+      assert.ok(inDbDeleted);
+      assert.strictEqual(inDbDeleted.is_deleted, 1, 'Deleted standard category must remain is_deleted = 1');
+
+      // Cleanup: restore it for other tests
+      db.prepare('UPDATE categories SET is_deleted = 0, is_active = 1 WHERE id = ?').run(targetCat.id);
+    });
+
+    it('allows restoring/re-creating a previously deleted category with clean active state', async () => {
+      const db = getDb();
+      const recycleLabel = `Qayta tiklanadigan toifa ${Date.now()}`;
+
+      // 1. Create category
+      const initial = CategoryService.createCategory({ label: recycleLabel }, db);
+      assert.strictEqual(initial.is_deleted, 0);
+
+      // 2. Delete it
+      CategoryService.deleteCategory(initial.id, db);
+      assert.strictEqual(CategoryService.getById(initial.id, {}, db), null);
+
+      // 3. Create again with same label -> should restore cleanly
+      const restored = CategoryService.createCategory({ label: recycleLabel }, db);
+      assert.strictEqual(restored.id, initial.id, 'Should reuse the same category record');
+      assert.strictEqual(restored.is_deleted, 0);
+      assert.strictEqual(restored.is_active, 1);
+
+      // Visible in active categories
+      const activeList = CategoryService.getAllCategories({}, db);
+      assert.ok(activeList.some((c) => c.id === restored.id));
+    });
+  });
 });

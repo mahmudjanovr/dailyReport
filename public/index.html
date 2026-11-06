@@ -400,6 +400,32 @@
       </div>
     </div>
 
+    <!-- Category Delete Confirmation Modal -->
+    <div class="modal-backdrop hidden" id="deleteCategoryModal">
+      <div class="modal-dialog modal-dialog-compact modal-dialog-danger">
+        <div class="modal-header">
+          <div>
+            <h3 class="modal-title">Toifani o‘chirish</h3>
+            <span class="modal-subtitle">Toifani hisobot tizimidan o‘chirish</span>
+          </div>
+          <button type="button" class="btn-close" id="btnDeleteCategoryClose" aria-label="Yopish">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p class="delete-confirm-text">
+            Haqiqatan ham «<strong id="deleteCategoryTargetLabel">...</strong>» toifasini o‘chirmoqchimisiz?
+          </p>
+          <p class="delete-confirm-hint">
+            Ushbu toifa yangi hisobotlarda ko‘rsatilmaydi. Tarixiy hisobotlardagi avvalgi ma’lumotlar to‘liq saqlanadi.
+          </p>
+          <div class="modal-error-message hidden" id="deleteCategoryError"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary btn-sm" id="btnDeleteCategoryCancel">Bekor qilish</button>
+          <button type="button" class="btn btn-danger btn-sm" id="btnDeleteCategoryConfirm">O‘chirish</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Toast Notifications -->
     <div class="toast-container" id="toastContainer"></div>
   </div>

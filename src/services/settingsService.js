@@ -88,7 +88,7 @@ export class SettingsService {
     const reportsCount = db.prepare('SELECT COUNT(*) as count FROM daily_reports').get().count;
     const entriesCount = db.prepare('SELECT COUNT(*) as count FROM report_entries').get().count;
     const totalCalls = db.prepare('SELECT COALESCE(SUM(count), 0) as total FROM report_entries').get().total;
-    const categoriesCount = db.prepare('SELECT COUNT(*) as count FROM categories WHERE is_active = 1').get().count;
+    const categoriesCount = db.prepare('SELECT COUNT(*) as count FROM categories WHERE is_active = 1 AND is_deleted = 0').get().count;
 
     let dbSizeBytes = 0;
     try {

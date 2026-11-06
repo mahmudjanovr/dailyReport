@@ -3,6 +3,7 @@ import { state } from './state.js';
 import { openAddCategoryModal } from './dashboard.js';
 
 let selectedBackupFile = null;
+let pendingDeleteCat = null;
 
 export function initSettings() {
   const operatorForm = document.getElementById('operatorSettingsForm');
@@ -17,6 +18,8 @@ export function initSettings() {
   if (btnAddCatSettings) {
     btnAddCatSettings.addEventListener('click', openAddCategoryModal);
   }
+
+  setupDeleteCategoryModal();
 
   // Load operator name into input
   if (inputOperator) {
@@ -117,12 +120,17 @@ async function loadCategoriesManager() {
   if (!container) return;
 
   try {
-    const res = await api.getCategories(true); // get all including inactive
+    const res = await api.getCategories(true); // get all active + inactive (non-deleted)
     const categories = res.data || [];
 
     const badge = document.getElementById('settingsCategoriesBadge');
     if (badge) {
       badge.textContent = `${categories.length} ta toifa`;
+    }
+
+    if (categories.length === 0) {
+      container.innerHTML = '<div class="empty-state-notice">Hozircha hech qanday toifa mavjud emas. Yuqoridagi "+ Yangi toifa" tugmasi orqali toifa qo‘shishingiz mumkin.</div>';
+      return;
     }
 
     container.innerHTML = categories
@@ -137,20 +145,40 @@ async function loadCategoriesManager() {
             </div>
           </div>
 
-          <label class="switch" title="Ko‘rinishini o‘zgartirish">
-            <input
-              type="checkbox"
-              class="cat-toggle-checkbox"
+          <div class="cat-toggle-actions">
+            <label class="switch" title="Ko‘rinishini o‘zgartirish">
+              <input
+                type="checkbox"
+                class="cat-toggle-checkbox"
+                data-cat-id="${cat.id}"
+                ${cat.is_active === 1 ? 'checked' : ''}
+              >
+              <span class="slider"></span>
+            </label>
+
+            <button
+              type="button"
+              class="btn-delete-cat"
               data-cat-id="${cat.id}"
-              ${cat.is_active === 1 ? 'checked' : ''}
+              data-cat-label="${escapeHtml(cat.label)}"
+              title="Toifani o‘chirish"
+              aria-label="${escapeHtml(cat.label)} toifasini o‘chirish"
             >
-            <span class="slider"></span>
-          </label>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 6h18"></path>
+                <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+                <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+                <line x1="10" y1="11" x2="10" y2="17"></line>
+                <line x1="14" y1="11" x2="14" y2="17"></line>
+              </svg>
+            </button>
+          </div>
         </div>
       `
       )
       .join('');
 
+    // Attach Toggle Listeners
     container.querySelectorAll('.cat-toggle-checkbox').forEach((checkbox) => {
       checkbox.addEventListener('change', async () => {
         const catId = Number.parseInt(checkbox.getAttribute('data-cat-id'), 10);
@@ -173,9 +201,117 @@ async function loadCategoriesManager() {
         }
       });
     });
+
+    // Attach Delete Listeners
+    container.querySelectorAll('.btn-delete-cat').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const catId = Number.parseInt(btn.getAttribute('data-cat-id'), 10);
+        const catLabel = btn.getAttribute('data-cat-label') || 'toifa';
+        openDeleteCategoryModal(catId, catLabel);
+      });
+    });
   } catch (err) {
     container.innerHTML = `<div class="error">Toifalarni yuklashda xatolik: ${escapeHtml(err.message)}</div>`;
   }
+}
+
+function setupDeleteCategoryModal() {
+  const modal = document.getElementById('deleteCategoryModal');
+  const btnClose = document.getElementById('btnDeleteCategoryClose');
+  const btnCancel = document.getElementById('btnDeleteCategoryCancel');
+  const btnConfirm = document.getElementById('btnDeleteCategoryConfirm');
+  const labelEl = document.getElementById('deleteCategoryTargetLabel');
+  const errEl = document.getElementById('deleteCategoryError');
+
+  if (!modal || !btnConfirm) return;
+
+  function closeModal() {
+    modal.classList.add('hidden');
+    pendingDeleteCat = null;
+    if (errEl) {
+      errEl.textContent = '';
+      errEl.classList.add('hidden');
+    }
+    btnConfirm.disabled = false;
+    btnConfirm.textContent = 'O‘chirish';
+  }
+
+  if (btnClose) btnClose.addEventListener('click', closeModal);
+  if (btnCancel) btnCancel.addEventListener('click', closeModal);
+
+  // Close on backdrop click
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) closeModal();
+  });
+
+  // Close on Escape key
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+      closeModal();
+    }
+  });
+
+  // Confirm delete
+  btnConfirm.addEventListener('click', async () => {
+    if (!pendingDeleteCat) return;
+
+    btnConfirm.disabled = true;
+    btnConfirm.textContent = 'O‘chirilmoqda...';
+    if (errEl) {
+      errEl.textContent = '';
+      errEl.classList.add('hidden');
+    }
+
+    try {
+      const res = await api.deleteCategory(pendingDeleteCat.id);
+      showToast(res.message || 'Toifa muvaffaqiyatli o‘chirildi', 'success');
+
+      closeModal();
+
+      // Refresh categories manager and settings badge
+      await loadCategoriesManager();
+
+      // Refresh today's report and dashboard
+      const todayRes = await api.getTodayReport(state.operatorName);
+      if (todayRes.data) {
+        state.setCurrentReport(todayRes.data);
+      }
+    } catch (err) {
+      btnConfirm.disabled = false;
+      btnConfirm.textContent = 'O‘chirish';
+      const msg = err.message || 'Toifani o‘chirishda xatolik yuz berdi';
+      if (errEl) {
+        errEl.textContent = msg;
+        errEl.classList.remove('hidden');
+      }
+      showToast(`Xatolik: ${msg}`, 'error');
+    }
+  });
+}
+
+export function openDeleteCategoryModal(catId, catLabel) {
+  const modal = document.getElementById('deleteCategoryModal');
+  const labelEl = document.getElementById('deleteCategoryTargetLabel');
+  const errEl = document.getElementById('deleteCategoryError');
+  const btnConfirm = document.getElementById('btnDeleteCategoryConfirm');
+
+  if (!modal) return;
+
+  pendingDeleteCat = { id: catId, label: catLabel };
+
+  if (labelEl) {
+    labelEl.textContent = catLabel;
+  }
+  if (errEl) {
+    errEl.textContent = '';
+    errEl.classList.add('hidden');
+  }
+  if (btnConfirm) {
+    btnConfirm.disabled = false;
+    btnConfirm.textContent = 'O‘chirish';
+  }
+
+  modal.classList.remove('hidden');
 }
 
 async function loadDiagnostics() {

@@ -75,6 +75,8 @@ export const api = {
     }),
   toggleCategory: (id) =>
     request(`/api/categories/${id}/toggle`, { method: 'PATCH' }),
+  deleteCategory: (id) =>
+    request(`/api/categories/${id}`, { method: 'DELETE' }),
 
   // Reports
   getTodayReport: (operator = null) =>

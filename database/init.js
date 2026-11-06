@@ -67,10 +67,18 @@ export function initializeDatabase(db = getDb()) {
       // Execute table and index creation statements
       db.exec(schemaSql);
 
-      // Seed categories idempotently
+      // Safe migration for existing databases: ensure is_deleted column exists on categories
+      const pragmaCols = db.prepare("PRAGMA table_info('categories')").all();
+      const hasDeletedCol = pragmaCols.some((col) => col.name === 'is_deleted');
+      if (!hasDeletedCol) {
+        db.exec("ALTER TABLE categories ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0;");
+        db.exec("CREATE INDEX IF NOT EXISTS idx_categories_is_deleted ON categories(is_deleted);");
+      }
+
+      // Seed categories idempotently without restoring soft-deleted categories
       const categoryStmt = db.prepare(`
-        INSERT INTO categories (key, label, sort_order, is_active)
-        VALUES (@key, @label, @sort_order, 1)
+        INSERT INTO categories (key, label, sort_order, is_active, is_deleted)
+        VALUES (@key, @label, @sort_order, 1, 0)
         ON CONFLICT(key) DO UPDATE SET
           label = excluded.label,
           sort_order = excluded.sort_order,
@@ -98,7 +106,7 @@ export function initializeDatabase(db = getDb()) {
       .all()
       .map((row) => row.name);
 
-    const categoriesCount = db.prepare('SELECT COUNT(*) as count FROM categories').get().count;
+    const categoriesCount = db.prepare('SELECT COUNT(*) as count FROM categories WHERE is_deleted = 0').get().count;
     const settingsCount = db.prepare('SELECT COUNT(*) as count FROM settings').get().count;
 
     return {
