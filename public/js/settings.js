@@ -1,5 +1,6 @@
 import { api } from './api.js';
 import { state } from './state.js';
+import { openAddCategoryModal } from './dashboard.js';
 
 let selectedBackupFile = null;
 
@@ -11,6 +12,11 @@ export function initSettings() {
   const fileInput = document.getElementById('backupFileInput');
   const btnExecuteRestore = document.getElementById('btnExecuteRestore');
   const selectedFileNameEl = document.getElementById('selectedFileName');
+  const btnAddCatSettings = document.getElementById('btnOpenAddCategorySettings');
+
+  if (btnAddCatSettings) {
+    btnAddCatSettings.addEventListener('click', openAddCategoryModal);
+  }
 
   // Load operator name into input
   if (inputOperator) {
@@ -113,6 +119,11 @@ async function loadCategoriesManager() {
   try {
     const res = await api.getCategories(true); // get all including inactive
     const categories = res.data || [];
+
+    const badge = document.getElementById('settingsCategoriesBadge');
+    if (badge) {
+      badge.textContent = `${categories.length} ta toifa`;
+    }
 
     container.innerHTML = categories
       .map(

@@ -1,10 +1,16 @@
 import PDFDocument from 'pdfkit';
 import { resolvePdfFonts, sanitizePdfText } from '../utils/fontLoader.js';
-import { getBusinessDate, getBusinessDateTimeString, getBusinessTime } from '../utils/date.js';
 
 export class PdfService {
   /**
-   * Generates a PDF stream or buffer from report data.
+   * Generates a streamlined, minimalistic receipt PDF from report data.
+   *
+   * Layout:
+   * 1. Top: "Daily Report" — large, bold, centered.
+   * 2. Beneath: Operator name (left) and total count (right) in one row:
+   *    e.g. "Rahmatillo         Jami: 25 ta"
+   * 3. Beneath: Daily results by category (only categories where count > 0):
+   *    Category name (left), count (right) e.g. "5 ta".
    *
    * @param {object} report - Hydrated report object with entries and totalCount
    * @returns {Promise<Buffer>}
@@ -24,10 +30,10 @@ export class PdfService {
         margin: 40,
         bufferPages: true,
         info: {
-          Title: `Operator Daily Report - ${report.operatorName} - ${report.reportDate}`,
-          Author: report.operatorName,
-          Subject: 'Operator Daily Performance Summary',
-          Creator: 'Operator Daily Report v1.0',
+          Title: `Daily Report - ${report.operatorName || 'Operator'}`,
+          Author: report.operatorName || 'Operator',
+          Subject: 'Daily Report',
+          Creator: 'Daily Report',
         },
       });
 
@@ -40,178 +46,118 @@ export class PdfService {
       if (isUnicode) {
         doc.registerFont('AppFont', fontConfig.regular);
         doc.registerFont('AppFont-Bold', fontConfig.bold);
-        doc.font('AppFont');
       } else {
         doc.registerFont('AppFont', 'Helvetica');
         doc.registerFont('AppFont-Bold', 'Helvetica-Bold');
-        doc.font('AppFont');
       }
+      doc.font('AppFont');
 
       const fontRegular = 'AppFont';
       const fontBold = 'AppFont-Bold';
-
       const s = (txt) => sanitizePdfText(txt, isUnicode);
 
-      // Colors
-      const primaryColor = '#1e3a8a'; // Deep Navy Blue
-      const secondaryColor = '#3b82f6'; // Bright Blue
-      const textColor = '#1e293b'; // Slate 800
-      const mutedColor = '#64748b'; // Slate 500
-      const borderColor = '#cbd5e1'; // Slate 300
-      const lightBg = '#f8fafc'; // Slate 50
-      const highlightBg = '#eff6ff'; // Blue 50
-
+      // Page geometry (A4 portrait: 595.28 x 841.89 pt)
       const pageWidth = 595.28;
-      const contentWidth = pageWidth - 80; // 515.28 pt
+      const cardWidth = 460;
+      const cardX = (pageWidth - cardWidth) / 2;
+      const padX = 36;
+      const contentWidth = cardWidth - padX * 2;
+      const contentX = cardX + padX;
 
-      // 1. Header Banner
-      doc.rect(40, 40, contentWidth, 54).fill(primaryColor);
+      const cardY = 55;
+      const padY = 32;
 
-      doc.fillColor('#ffffff').font(fontBold).fontSize(16);
-      doc.text(s('OPERATOR KUNLIK HISOBOTI'), 55, 52, { width: 340 });
+      // Extract dynamic report values
+      const operatorName = (report.operatorName || 'Operator').trim();
 
-      doc.font(fontRegular).fontSize(8.5).fillColor('#93c5fd');
-      doc.text(s('Operator Daily Performance Summary Report'), 55, 73);
+      // Only include categories where count > 0
+      const activeEntries = (report.entries || []).filter((item) => (Number(item.count) || 0) > 0);
 
-      doc.font(fontBold).fontSize(12).fillColor('#ffffff');
-      doc.text(s(report.reportDate), 400, 52, { align: 'right', width: 140 });
+      // Calculate dynamic total
+      const total = activeEntries.reduce((sum, item) => sum + (Number(item.count) || 0), 0);
 
-      doc.font(fontRegular).fontSize(8).fillColor('#bfdbfe');
-      doc.text(s(`ID: #${report.id}`), 400, 71, { align: 'right', width: 140 });
-
-      // 2. Metadata Cards Bar
-      const metaY = 106;
-      doc.rect(40, metaY, contentWidth, 52).fillAndStroke(lightBg, borderColor);
-
-      // Operator Name
-      doc.fillColor(mutedColor).font(fontRegular).fontSize(7.5).text(s('OPERATOR:'), 55, metaY + 10);
-      doc.fillColor(textColor).font(fontBold).fontSize(11).text(s(report.operatorName), 55, metaY + 22);
-
-      // Business Date
-      doc.fillColor(mutedColor).font(fontRegular).fontSize(7.5).text(s('HISOBOT SANASI:'), 190, metaY + 10);
-      doc.fillColor(textColor).font(fontBold).fontSize(11).text(s(report.reportDate), 190, metaY + 22);
-
-      // Generation Timestamp
-      const genTimeStr = `${getBusinessDate()} ${getBusinessTime()} (Asia/Tashkent)`;
-      doc.fillColor(mutedColor).font(fontRegular).fontSize(7.5).text(s('YARATILGAN VAQTI:'), 325, metaY + 10);
-      doc.fillColor(textColor).font(fontRegular).fontSize(9).text(s(genTimeStr), 325, metaY + 23);
-
-      // Total Call Volume Badge
-      doc.rect(455, metaY + 8, 90, 36).fillAndStroke(highlightBg, secondaryColor);
-      doc.fillColor(secondaryColor).font(fontRegular).fontSize(7.5).text(s('JAMI NATIJA:'), 455, metaY + 12, { align: 'center', width: 90 });
-      doc.fillColor(primaryColor).font(fontBold).fontSize(14).text(String(report.totalCount || 0), 455, metaY + 23, { align: 'center', width: 90 });
-
-      // 3. Table Header
-      const tableY = 175;
-      const colNo = 40;
-      const colName = 75;
-      const colCode = 310;
-      const colCount = 420;
-      const colShare = 485;
-
-      const wNo = 35;
-      const wName = 235;
-      const wCode = 110;
-      const wCount = 65;
-      const wShare = 70;
-
-      doc.rect(40, tableY, contentWidth, 24).fill(primaryColor);
-
-      doc.fillColor('#ffffff').font(fontBold).fontSize(8.5);
-      doc.text(s('№'), colNo, tableY + 7, { width: wNo, align: 'center' });
-      doc.text(s('Kategoriya Nomi (Category)'), colName + 5, tableY + 7, { width: wName });
-      doc.text(s('Kodi (Key)'), colCode + 5, tableY + 7, { width: wCode });
-      doc.text(s('Miqdori'), colCount, tableY + 7, { width: wCount - 5, align: 'right' });
-      doc.text(s('Ulush (%)'), colShare, tableY + 7, { width: wShare - 10, align: 'right' });
-
-      // 4. Table Rows
-      let currentY = tableY + 24;
-      const rowHeight = 26;
-      const entries = report.entries || [];
-      const total = report.totalCount || 0;
-
-      entries.forEach((item, index) => {
-        const isEven = index % 2 === 0;
-        doc.rect(40, currentY, contentWidth, rowHeight).fill(isEven ? '#ffffff' : '#f8fafc');
-        doc.rect(40, currentY, contentWidth, rowHeight).stroke(borderColor);
-
-        // Sequence number
-        doc.fillColor(mutedColor).font(fontRegular).fontSize(8.5);
-        doc.text(String(index + 1), colNo, currentY + 8, { width: wNo, align: 'center' });
-
-        // Category label
-        doc.fillColor(textColor).font(fontBold).fontSize(9.5);
-        doc.text(s(item.category_label || item.label || ''), colName + 5, currentY + 8, { width: wName });
-
-        // Category key code
-        doc.fillColor(mutedColor).font(fontRegular).fontSize(8);
-        doc.text(s(item.category_key || item.key || ''), colCode + 5, currentY + 9, { width: wCode });
-
-        // Count
+      // Dynamic row heights to ensure text never overflows or overlaps
+      const defaultRowHeight = 32;
+      const calculatedRows = activeEntries.map((item) => {
+        const catLabel = item.category_label || item.label || item.category_key || '';
         const count = Number(item.count) || 0;
-        doc.fillColor(textColor).font(fontBold).fontSize(10);
-        doc.text(String(count), colCount, currentY + 8, { width: wCount - 5, align: 'right' });
+        const countStr = `${count} ta`;
 
-        // Share percentage
-        const pct = total > 0 ? ((count / total) * 100).toFixed(1) + '%' : '0.0%';
-        doc.fillColor(primaryColor).font(fontRegular).fontSize(8.5);
-        doc.text(pct, colShare, currentY + 8, { width: wShare - 10, align: 'right' });
+        // Check if label needs multiple lines
+        doc.font(fontRegular).fontSize(12.5);
+        const labelHeight = doc.heightOfString(s(catLabel), { width: contentWidth - 90 });
+        const rowH = Math.max(defaultRowHeight, labelHeight + 14);
 
-        currentY += rowHeight;
+        return {
+          label: catLabel,
+          countStr,
+          count,
+          rowHeight: rowH,
+        };
       });
 
-      // 5. Total Summary Row
-      doc.rect(40, currentY, contentWidth, 28).fillAndStroke(highlightBg, secondaryColor);
-      doc.fillColor(primaryColor).font(fontBold).fontSize(10);
-      doc.text(s('JAMI (TOTAL CALLS / RESULTS):'), colName + 5, currentY + 9, { width: 330 });
+      const rowsTotalHeight = calculatedRows.length > 0
+        ? calculatedRows.reduce((sum, r) => sum + r.rowHeight, 0)
+        : 36;
 
-      doc.fillColor(primaryColor).font(fontBold).fontSize(12);
-      doc.text(String(total), colCount, currentY + 8, { width: wCount - 5, align: 'right' });
+      // Precalculate card height:
+      // padY(32) + Title(32) + gap(10) + div1(1) + gap(14) + operator/total(22) + gap(14) + div2(1.5) + gap(14) + rows + padBottom(28)
+      const cardHeight = padY + 32 + 10 + 1 + 14 + 22 + 14 + 1.5 + 14 + rowsTotalHeight + 28;
 
-      doc.fillColor(primaryColor).font(fontBold).fontSize(9.5);
-      doc.text(total > 0 ? '100.0%' : '0.0%', colShare, currentY + 9, { width: wShare - 10, align: 'right' });
+      // Draw receipt card background and border
+      doc.roundedRect(cardX, cardY, cardWidth, cardHeight, 10)
+        .lineWidth(1)
+        .fillAndStroke('#ffffff', '#e2e8f0');
 
-      currentY += 40;
+      let curY = cardY + padY;
 
-      // 6. Signatures & Verification Area
-      const sigY = Math.max(currentY + 20, 680);
-      doc.rect(40, sigY, contentWidth, 68).stroke(borderColor);
+      // 1. Daily Report — large, clear, centered
+      doc.font(fontBold).fontSize(24).fillColor('#0f172a');
+      doc.text(s('Daily Report'), contentX, curY, { width: contentWidth, align: 'center' });
+      curY += 32;
 
-      // Left: Operator Signature
-      doc.fillColor(mutedColor).font(fontRegular).fontSize(8);
-      doc.text(s('Mas‘ul operator:'), 55, sigY + 12);
-      doc.fillColor(textColor).font(fontBold).fontSize(9.5);
-      doc.text(s(report.operatorName), 55, sigY + 26);
-      doc.text('Imzo: _________________________', 55, sigY + 46);
+      // Divider 1
+      curY += 10;
+      doc.moveTo(contentX, curY).lineTo(contentX + contentWidth, curY).lineWidth(1).strokeColor('#e2e8f0').stroke();
+      curY += 14;
 
-      // Right: Management / Verification
-      doc.fillColor(mutedColor).font(fontRegular).fontSize(8);
-      doc.text(s('Hisobot tekshiruvchisi / Rahbariyat:'), 320, sigY + 12);
-      doc.fillColor(textColor).font(fontBold).fontSize(9.5);
-      doc.text(s('Qabul qilindi / Tasdiqlandi'), 320, sigY + 26);
-      doc.text('Imzo va muhr: _________________________', 320, sigY + 46);
+      // 2. Operator name & Total result in one row
+      // Example: Rahmatillo         Jami: 25 ta
+      const totalColWidth = 130;
+      const opColWidth = contentWidth - totalColWidth;
+      doc.font(fontBold).fontSize(14).fillColor('#1e293b');
+      doc.text(s(operatorName), contentX, curY, { width: opColWidth, align: 'left' });
+      doc.text(s(`Jami: ${total} ta`), contentX + opColWidth, curY, { width: totalColWidth, align: 'right' });
+      curY += 22;
 
-      // 8. Footer (Page numbers across all pages)
-      const range = doc.bufferedPageRange();
-      for (let i = range.start; i < range.start + range.count; i++) {
-        doc.switchToPage(i);
-        const footerY = 790;
-        doc.moveTo(40, footerY).lineTo(pageWidth - 40, footerY).stroke(borderColor);
+      // Divider 2 (separator for category items)
+      curY += 14;
+      doc.moveTo(contentX, curY).lineTo(contentX + contentWidth, curY).lineWidth(1.5).strokeColor('#cbd5e1').stroke();
+      curY += 14;
 
-        doc.fillColor(mutedColor).font(fontRegular).fontSize(7.5);
-        doc.text(
-          s('Operator Daily Report • Rasmiy shaxsiy hisobot hujjati'),
-          40,
-          footerY + 8,
-          { width: 300 }
-        );
+      // 3. Category daily results
+      if (calculatedRows.length === 0) {
+        doc.font(fontRegular).fontSize(12).fillColor('#94a3b8');
+        doc.text(s('Natijalar mavjud emas'), contentX, curY + 8, { width: contentWidth, align: 'center' });
+      } else {
+        calculatedRows.forEach((row, index) => {
+          const rowY = curY;
 
-        doc.text(
-          s(`Sahifa ${i + 1} / ${range.count}`),
-          pageWidth - 140,
-          footerY + 8,
-          { width: 100, align: 'right' }
-        );
+          // Category name (left)
+          doc.font(fontRegular).fontSize(12.5).fillColor('#334155');
+          doc.text(s(row.label), contentX, rowY + 7, { width: contentWidth - 90, align: 'left' });
+
+          // Count (right)
+          doc.font(fontBold).fontSize(12.5).fillColor('#0f172a');
+          doc.text(s(row.countStr), contentX + contentWidth - 90, rowY + 7, { width: 90, align: 'right' });
+
+          // Row divider line (except last row)
+          if (index < calculatedRows.length - 1) {
+            doc.moveTo(contentX, rowY + row.rowHeight).lineTo(contentX + contentWidth, rowY + row.rowHeight).lineWidth(0.5).strokeColor('#f1f5f9').stroke();
+          }
+
+          curY += row.rowHeight;
+        });
       }
 
       doc.end();

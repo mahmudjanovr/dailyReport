@@ -411,7 +411,92 @@ body {
   line-height: 1;
 }
 
-/* Counters Grid (11 Predefined Categories) */
+/* Category Section Header Bar & Dynamic + Button */
+.categories-header-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.2rem 0.25rem 0.35rem 0.25rem;
+  margin-top: 0.15rem;
+  gap: 0.5rem;
+}
+
+.categories-heading-group {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.categories-heading {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin: 0;
+  line-height: 1;
+}
+
+.categories-count-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-sub);
+  background: var(--bg-card-subtle);
+  border: 1px solid var(--border);
+  padding: 0.1rem 0.4rem;
+  border-radius: var(--radius-xs);
+  line-height: 1.2;
+}
+
+.btn-add-category {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--primary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.2rem 0.55rem;
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  line-height: 1.2;
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-add-category:hover {
+  background: var(--primary-light);
+  border-color: var(--primary-border);
+  color: var(--primary-hover);
+}
+
+.btn-add-category:active {
+  transform: scale(0.97);
+}
+
+.btn-add-icon {
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.btn-add-label {
+  font-size: 0.75rem;
+}
+
+.settings-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn-settings-add-cat {
+  padding: 0.2rem 0.55rem;
+  font-size: 0.75rem;
+}
+
+/* Counters Grid (Vertically Stacked Categories) */
 .counters-grid {
   display: flex;
   flex-direction: column;
@@ -1054,6 +1139,41 @@ input:checked + .slider:before {
   box-shadow: var(--shadow-modal);
   overflow: hidden;
   animation: modal-pop 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.modal-dialog-compact {
+  max-width: 440px;
+}
+
+.key-preview-hint {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 0.45rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.key-preview-hint code {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--primary);
+  background: var(--bg-card-subtle);
+  padding: 0.1rem 0.35rem;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--border);
+}
+
+.modal-error-message {
+  font-size: 0.775rem;
+  font-weight: 500;
+  color: var(--danger);
+  background: var(--danger-bg);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-xs);
+  padding: 0.35rem 0.6rem;
+  margin-top: 0.5rem;
 }
 
 @keyframes modal-pop {

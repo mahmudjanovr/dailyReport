@@ -1,11 +1,14 @@
 import { state } from './state.js';
 import { api } from './api.js';
+import { normalizeCategoryKey } from './categoryKey.js';
 
 let debounceTimers = new Map();
 
 export function initDashboard() {
   const btnDownloadPdf = document.getElementById('btnDownloadTodayPdf');
   const btnRefresh = document.getElementById('btnRefreshToday');
+
+  setupAddCategoryModal();
 
   if (btnDownloadPdf) {
     btnDownloadPdf.addEventListener('click', () => {
@@ -76,6 +79,11 @@ export function renderDashboard() {
 
   const entries = report.entries || [];
   const total = report.totalCount || 0;
+
+  const badge = document.getElementById('dashCategoriesBadge');
+  if (badge) {
+    badge.textContent = `${entries.length} ta toifa`;
+  }
 
   grid.innerHTML = entries
     .map((entry) => {
@@ -254,4 +262,137 @@ function showToast(message, type = 'info') {
     toast.style.opacity = '0';
     setTimeout(() => toast.remove(), 250);
   }, 3500);
+}
+
+export function openAddCategoryModal() {
+  const modal = document.getElementById('addCategoryModal');
+  const input = document.getElementById('inputCategoryLabel');
+  const preview = document.getElementById('previewCategoryKey');
+  const errorEl = document.getElementById('addCategoryError');
+  const submitBtn = document.getElementById('btnAddCategorySubmit');
+
+  if (!modal) return;
+
+  if (input) input.value = '';
+  if (preview) preview.textContent = '—';
+  if (errorEl) {
+    errorEl.textContent = '';
+    errorEl.classList.add('hidden');
+  }
+  if (submitBtn) {
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Qo‘shish';
+  }
+
+  modal.classList.remove('hidden');
+  setTimeout(() => input?.focus(), 50);
+}
+
+export function closeAddCategoryModal() {
+  const modal = document.getElementById('addCategoryModal');
+  if (modal) {
+    modal.classList.add('hidden');
+  }
+}
+
+function setupAddCategoryModal() {
+  const modal = document.getElementById('addCategoryModal');
+  const form = document.getElementById('addCategoryForm');
+  const input = document.getElementById('inputCategoryLabel');
+  const preview = document.getElementById('previewCategoryKey');
+  const errorEl = document.getElementById('addCategoryError');
+  const closeBtn = document.getElementById('btnAddCategoryClose');
+  const cancelBtn = document.getElementById('btnAddCategoryCancel');
+  const submitBtn = document.getElementById('btnAddCategorySubmit');
+  const openBtn = document.getElementById('btnOpenAddCategory');
+
+  if (openBtn) {
+    openBtn.addEventListener('click', openAddCategoryModal);
+  }
+
+  if (closeBtn) closeBtn.addEventListener('click', closeAddCategoryModal);
+  if (cancelBtn) cancelBtn.addEventListener('click', closeAddCategoryModal);
+
+  if (modal) {
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) closeAddCategoryModal();
+    });
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && modal && !modal.classList.contains('hidden')) {
+      closeAddCategoryModal();
+    }
+  });
+
+  if (input) {
+    input.addEventListener('input', () => {
+      const val = input.value.trim();
+      if (errorEl) {
+        errorEl.classList.add('hidden');
+        errorEl.textContent = '';
+      }
+      if (preview) {
+        preview.textContent = val ? normalizeCategoryKey(val) || 'toifa' : '—';
+      }
+    });
+  }
+
+  if (form) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const rawLabel = input.value;
+      const label = rawLabel.trim();
+
+      if (!label) {
+        if (errorEl) {
+          errorEl.textContent = 'Toifa nomi kiritilishi shart!';
+          errorEl.classList.remove('hidden');
+        }
+        input.focus();
+        return;
+      }
+
+      // Case-insensitive duplicate check against currently loaded categories
+      const currentEntries = state.currentReport?.entries || [];
+      const isDuplicate = currentEntries.some(
+        (ent) => ent.category_label?.trim().toLowerCase() === label.toLowerCase()
+      );
+      if (isDuplicate) {
+        if (errorEl) {
+          errorEl.textContent = `"${label}" nomli toifa allaqachon mavjud!`;
+          errorEl.classList.remove('hidden');
+        }
+        input.focus();
+        return;
+      }
+
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Qo‘shilmoqda...';
+      }
+
+      try {
+        const res = await api.createCategory({ label });
+        closeAddCategoryModal();
+        showToast(`Yangi toifa qo‘shildi: ${res.data?.label || label}`, 'success');
+
+        // Immediately refresh today's report
+        const todayRes = await api.getTodayReport(state.operatorName);
+        if (todayRes.data) {
+          state.setCurrentReport(todayRes.data);
+        }
+      } catch (err) {
+        if (errorEl) {
+          errorEl.textContent = err.message || 'Toifani saqlashda xatolik yuz berdi';
+          errorEl.classList.remove('hidden');
+        }
+      } finally {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Qo‘shish';
+        }
+      }
+    });
+  }
 }

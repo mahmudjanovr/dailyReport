@@ -1,8 +1,24 @@
 import { Router } from 'express';
 import { CategoryService } from '../services/categoryService.js';
 import { NotFoundError } from '../utils/errors.js';
+import { createCategorySchema } from '../validators/categoryValidator.js';
 
 const router = Router();
+
+// POST /api/categories - Create a new category
+router.post('/', (req, res, next) => {
+  try {
+    const validated = createCategorySchema.parse(req.body);
+    const category = CategoryService.createCategory(validated);
+    res.status(201).json({
+      success: true,
+      message: 'Toifa muvaffaqiyatli yaratildi',
+      data: category,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
 
 // GET /api/categories - List categories (supports ?all=true for settings)
 router.get('/', (req, res, next) => {

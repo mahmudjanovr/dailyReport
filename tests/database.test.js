@@ -34,7 +34,7 @@ describe('Database Schema & Constraints', () => {
   it('should seed all predefined categories with stable keys', () => {
     const categories = db.prepare('SELECT * FROM categories ORDER BY sort_order ASC').all();
     assert.strictEqual(categories.length, INITIAL_CATEGORIES.length);
-    assert.strictEqual(categories.length, 11, 'Should have exactly 11 categories');
+    assert.strictEqual(categories.length, 12, 'Should have exactly 12 categories');
 
     for (const expected of INITIAL_CATEGORIES) {
       const found = categories.find((c) => c.key === expected.key);
@@ -45,11 +45,11 @@ describe('Database Schema & Constraints', () => {
     }
   });
 
-  it('should maintain exactly 11 categories without duplicates on multiple initializations', () => {
+  it('should maintain exactly 12 categories without duplicates on multiple initializations', () => {
     initializeDatabase(db);
     initializeDatabase(db);
     const count = db.prepare('SELECT COUNT(*) as count FROM categories').get().count;
-    assert.strictEqual(count, 11, 'Should have exactly 11 categories after repeated init');
+    assert.strictEqual(count, 12, 'Should have exactly 12 categories after repeated init');
 
     const cat10 = db.prepare("SELECT * FROM categories WHERE key = 'notogri_raqam'").get();
     assert.ok(cat10, 'Category notogri_raqam must exist');
@@ -60,6 +60,11 @@ describe('Database Schema & Constraints', () => {
     assert.ok(cat11, 'Category raqam_egasi_boshqa must exist');
     assert.strictEqual(cat11.label, 'Raqam egasi boshqa');
     assert.strictEqual(cat11.sort_order, 11);
+
+    const cat12 = db.prepare("SELECT * FROM categories WHERE key = 'farzandlari_katta'").get();
+    assert.ok(cat12, 'Category farzandlari_katta must exist');
+    assert.strictEqual(cat12.label, 'Farzandlari katta');
+    assert.strictEqual(cat12.sort_order, 12);
   });
 
   it('should seed default settings including operator name and timezone', () => {

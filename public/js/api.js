@@ -68,6 +68,11 @@ export const api = {
   // Categories
   getCategories: (includeInactive = false) =>
     request(`/api/categories${includeInactive ? '?all=true' : ''}`),
+  createCategory: (data) =>
+    request('/api/categories', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
   toggleCategory: (id) =>
     request(`/api/categories/${id}/toggle`, { method: 'PATCH' }),
 

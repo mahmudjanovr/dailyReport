@@ -19,6 +19,7 @@ export const INITIAL_CATEGORIES = [
   { key: 'farzandi_yoq', label: 'Farzandi yo‘q', sort_order: 9 },
   { key: 'notogri_raqam', label: 'Noto‘g‘ri raqam', sort_order: 10 },
   { key: 'raqam_egasi_boshqa', label: 'Raqam egasi boshqa', sort_order: 11 },
+  { key: 'farzandlari_katta', label: 'Farzandlari katta', sort_order: 12 },
 ];
 
 export const INITIAL_SETTINGS = [

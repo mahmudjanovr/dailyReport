@@ -25,7 +25,7 @@ describe('Reports API & Counter Autosave Endpoints', () => {
     closeDb();
   });
 
-  it('GET /api/reports/today should return today report with all 11 categories', async () => {
+  it('GET /api/reports/today should return today report with all 12 categories', async () => {
     const res = await fetch(`${baseUrl}/api/reports/today`);
     assert.strictEqual(res.status, 200);
 
@@ -33,9 +33,9 @@ describe('Reports API & Counter Autosave Endpoints', () => {
     assert.strictEqual(json.success, true);
     assert.ok(json.data);
     assert.ok(json.data.id > 0);
-    assert.ok(json.data.entries.length >= 11);
+    assert.ok(json.data.entries.length >= 12);
 
-    // Verify all 11 categories are present
+    // Verify all 12 categories are present
     const keys = json.data.entries.map((e) => e.category_key);
     assert.ok(keys.includes('ko_tarmadi'));
     assert.ok(keys.includes('rad_etish'));
@@ -48,6 +48,7 @@ describe('Reports API & Counter Autosave Endpoints', () => {
     assert.ok(keys.includes('farzandi_yoq'));
     assert.ok(keys.includes('notogri_raqam'));
     assert.ok(keys.includes('raqam_egasi_boshqa'));
+    assert.ok(keys.includes('farzandlari_katta'));
   });
 
   it('POST /api/reports/entry should atomically update a single category count', async () => {
@@ -193,7 +194,7 @@ describe('Reports API & Counter Autosave Endpoints', () => {
     assert.strictEqual(egasiEntry.count, 0, 'Older report must display 0 for unrecorded raqam_egasi_boshqa');
   });
 
-  it('should start any new calendar day with all 11 categories initialized to 0 and totalCount 0', async () => {
+  it('should start any new calendar day with all 12 categories initialized to 0 and totalCount 0', async () => {
     const newDate = '2026-12-01';
     const db = getDb();
     db.prepare('DELETE FROM daily_reports WHERE report_date = ?').run(newDate);
@@ -205,7 +206,9 @@ describe('Reports API & Counter Autosave Endpoints', () => {
     assert.strictEqual(json.success, true);
     assert.strictEqual(json.data.reportDate, newDate);
     assert.strictEqual(json.data.totalCount, 0, 'New day total count must be 0');
-    assert.strictEqual(json.data.entries.length, 11, 'All 11 categories must be present');
+    const activeCatsCount = db.prepare('SELECT COUNT(*) as c FROM categories WHERE is_active = 1').get().c;
+    assert.strictEqual(json.data.entries.length, activeCatsCount, 'All active categories must be present');
+    assert.ok(json.data.entries.length >= 12, 'At least all 12 default categories must be present');
 
     for (const entry of json.data.entries) {
       assert.strictEqual(entry.count, 0, `Category ${entry.category_key} must start at 0`);

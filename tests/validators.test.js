@@ -2,6 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { createReportSchema, reportEntrySchema } from '../src/validators/reportValidator.js';
 import { updateSettingSchema, updateOperatorSchema } from '../src/validators/settingsValidator.js';
+import { createCategorySchema } from '../src/validators/categoryValidator.js';
 
 describe('Zod Validators', () => {
   describe('reportEntrySchema', () => {
@@ -143,6 +144,46 @@ describe('Zod Validators', () => {
       assert.throws(() => {
         updateOperatorSchema.parse({
           operator_name: '   ',
+        });
+      });
+    });
+  });
+
+  describe('createCategorySchema', () => {
+    it('accepts valid category label', () => {
+      const parsed = createCategorySchema.parse({
+        label: 'Qayta qo‘ng‘iroq qilish',
+      });
+      assert.strictEqual(parsed.label, 'Qayta qo‘ng‘iroq qilish');
+    });
+
+    it('accepts valid category label with optional key', () => {
+      const parsed = createCategorySchema.parse({
+        label: 'Qayta qo‘ng‘iroq qilish',
+        key: 'custom_key',
+      });
+      assert.strictEqual(parsed.label, 'Qayta qo‘ng‘iroq qilish');
+      assert.strictEqual(parsed.key, 'custom_key');
+    });
+
+    it('rejects empty category label', () => {
+      assert.throws(() => {
+        createCategorySchema.parse({
+          label: '   ',
+        });
+      });
+    });
+
+    it('rejects missing label', () => {
+      assert.throws(() => {
+        createCategorySchema.parse({});
+      });
+    });
+
+    it('rejects non-string label', () => {
+      assert.throws(() => {
+        createCategorySchema.parse({
+          label: 12345,
         });
       });
     });

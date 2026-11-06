@@ -33,14 +33,14 @@ describe('API Endpoints & Middleware', () => {
     assert.ok(text.includes('Rahmatillo'));
   });
 
-  it('GET /api/categories should return all 11 categories', async () => {
+  it('GET /api/categories should return all 12 categories', async () => {
     const res = await fetch(`${baseUrl}/api/categories`);
     assert.strictEqual(res.status, 200);
 
     const json = await res.json();
     assert.strictEqual(json.success, true);
     assert.ok(Array.isArray(json.data));
-    assert.strictEqual(json.data.length, 11);
+    assert.ok(json.data.length >= 12);
 
     const keys = json.data.map((c) => c.key);
     assert.ok(keys.includes('ko_tarmadi'));
@@ -54,6 +54,7 @@ describe('API Endpoints & Middleware', () => {
     assert.ok(keys.includes('farzandi_yoq'));
     assert.ok(keys.includes('notogri_raqam'));
     assert.ok(keys.includes('raqam_egasi_boshqa'));
+    assert.ok(keys.includes('farzandlari_katta'));
   });
 
   it('GET /api/settings should return configured settings', async () => {

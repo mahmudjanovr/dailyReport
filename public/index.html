@@ -90,7 +90,19 @@
           </div>
         </div>
 
-        <!-- 11 Compact Category Counter Rows List -->
+        <!-- Category Section Heading with Dynamic + Button -->
+        <div class="categories-header-bar">
+          <div class="categories-heading-group">
+            <h2 class="categories-heading">Qo‘ng‘iroq toifalari</h2>
+            <span class="badge categories-count-badge" id="dashCategoriesBadge">—</span>
+          </div>
+          <button type="button" class="btn-add-category" id="btnOpenAddCategory" title="Yangi toifa qo‘shish" aria-label="Yangi toifa qo‘shish">
+            <span class="btn-add-icon">+</span>
+            <span class="btn-add-label">Toifa qo‘shish</span>
+          </button>
+        </div>
+
+        <!-- Categories Counter List (Vertically Stacked) -->
         <div class="counters-grid" id="countersGrid">
           <div class="loading-state">Toifalar yuklanmoqda...</div>
         </div>
@@ -197,7 +209,12 @@
           <div class="card settings-card">
             <div class="card-header">
               <h3>Toifalar Ko‘rinishi (Boshqaruv)</h3>
-              <span class="badge">11 ta toifa</span>
+              <div class="settings-header-actions">
+                <span class="badge" id="settingsCategoriesBadge">—</span>
+                <button type="button" class="btn btn-secondary btn-sm btn-settings-add-cat" id="btnOpenAddCategorySettings" title="Yangi toifa qo‘shish">
+                  + Yangi toifa
+                </button>
+              </div>
             </div>
             <p class="card-desc">
               Toifani yashirish uning tarixiy hisobotlardagi ma‘lumotlarini o‘chirmaydi, faqat bugungi hisobot ekranida vaqtincha ko‘rsatilmaydi.
@@ -344,6 +361,42 @@
             📄 PDF Yuklab Olish
           </button>
         </div>
+      </div>
+    </div>
+
+    <!-- Dynamic Category Creation Modal -->
+    <div class="modal-backdrop hidden" id="addCategoryModal">
+      <div class="modal-dialog modal-dialog-compact">
+        <div class="modal-header">
+          <div>
+            <h3 class="modal-title">Yangi toifa qo‘shish</h3>
+            <span class="modal-subtitle">Hisobot uchun yangi toifa kiritish</span>
+          </div>
+          <button type="button" class="btn-close" id="btnAddCategoryClose" aria-label="Yopish">&times;</button>
+        </div>
+        <form id="addCategoryForm" autocomplete="off">
+          <div class="modal-body">
+            <div class="form-group">
+              <label for="inputCategoryLabel">Toifa nomi</label>
+              <input
+                type="text"
+                id="inputCategoryLabel"
+                class="input-text"
+                placeholder="Masalan: Qayta qo‘ng‘iroq qilish"
+                required
+                maxlength="100"
+              >
+              <div class="key-preview-hint">
+                Toifa kodi: <code id="previewCategoryKey">—</code>
+              </div>
+              <div class="modal-error-message hidden" id="addCategoryError"></div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary btn-sm" id="btnAddCategoryCancel">Bekor qilish</button>
+            <button type="submit" class="btn btn-primary btn-sm" id="btnAddCategorySubmit">Qo‘shish</button>
+          </div>
+        </form>
       </div>
     </div>
 
